@@ -2,9 +2,10 @@
 
 import rospy
 import numpy as np
-
+import math
+from std_msgs.msg import Header
 from visual_servoing.msg import ConeLocation, ParkingError
-from ackermann_msgs.msg import AckermannDriveStamped
+from ackermann_msgs.msg import AckermannDriveStamped, AckermannDrive
 
 class ParkingController():
     """
@@ -23,14 +24,28 @@ class ParkingController():
             ParkingError, queue_size=10)
 
         self.parking_distance = .75 # meters; try playing with this number!
+        self.MAX_VELOCITY = 1
         self.relative_x = 0
         self.relative_y = 0
+        
 
     def relative_cone_callback(self, msg):
         self.relative_x = msg.x_pos
         self.relative_y = msg.y_pos
-        drive_cmd = AckermannDriveStamped()
 
+        # notes on coordinate system: 
+        relative_direction = math.atan(self.relative_x/self.relative_y)
+        relative_distance = math.sqrt(self.relative_x**2 + self.relative_y**2)
+        x_diff = self.relative_x - self.parking_distance
+        rospy.loginfo("x diff" + str(x_diff))
+        move_forward = 1 if (x_diff > 0) else -1
+        
+        drive_cmd = AckermannDriveStamped()
+        drive_cmd.header = Header()
+        drive = AckermannDrive()
+        drive.speed = min(self.MAX_VELOCITY, abs(x_diff)) * move_forward
+        rospy.loginfo("speed: " + str(drive.speed))
+        drive_cmd.drive = drive
         #################################
 
         # YOUR CODE HERE
@@ -50,8 +65,9 @@ class ParkingController():
 
         #################################
 
-        # YOUR CODE HERE
-        # Populate error_msg with relative_x, relative_y, sqrt(x^2+y^2)
+        error_msg.x_error = self.relative_x
+        error_msg.y_error = self.relative_y
+        error_msg.distance_error = math.sqrt(self.relative_x**2 + self.relative_y**2)
 
         #################################
         
